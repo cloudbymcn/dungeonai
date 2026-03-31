@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DungeonAI — Como construir um RPG text adventure com IA generativa na AWS</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=MedievalSharp&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0f;
+            color: #c9c2d4;
+            line-height: 1.75;
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            background: linear-gradient(170deg, #0a0a0f 0%, #1a1530 40%, #0d0b14 100%);
+            border-bottom: 1px solid #2a2340;
+            padding: 80px 20px 60px;
+            text-align: center;
+        }
+        .hero-title {
+            font-family: 'MedievalSharp', cursive;
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            background: linear-gradient(135deg, #d4a44c 0%, #f0d68a 50%, #d4a44c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 3px;
+            margin-bottom: 12px;
+        }
+        .hero-subtitle {
+            font-size: 1.15rem;
+            color: #8a8098;
+            max-width: 700px;
+            margin: 0 auto 24px;
+        }
+        .hero-tags {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .tag {
+            background: #1e1a2e;
+            border: 1px solid #3d3260;
+            border-radius: 20px;
+            padding: 4px 14px;
+            font-size: 0.8rem;
+            color: #9080b0;
+        }
+
+        /* ===== LAYOUT ===== */
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* ===== HEADINGS ===== */
+        h2 {
+            font-family: 'MedievalSharp', cursive;
+            font-size: 1.8rem;
+            color: #d4a44c;
+            margin: 48px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #2a234060;
+        }
+        h3 {
+            font-size: 1.2rem;
+            color: #c9b8e8;
+            margin: 32px 0 12px;
+            font-weight: 600;
+        }
+        h4 {
+            font-size: 1rem;
+            color: #9080b0;
+            margin: 20px 0 8px;
+            font-weight: 600;
+        }
+
+        /* ===== TEXT ===== */
+        p {
+            margin: 12px 0;
+            color: #b8b0c8;
+        }
+        a {
+            color: #7c5cbf;
+            text-decoration: none;
+        }
+        a:hover { text-decoration: underline; }
+
+        strong { color: #e8dff5; }
+        em { color: #9080b0; }
+
+        ul, ol {
+            margin: 12px 0 12px 24px;
+            color: #b8b0c8;
+        }
+        li { margin: 6px 0; }
+
+        /* ===== STEP NUMBERS ===== */
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin: 32px 0;
+            padding: 24px;
+            background: linear-gradient(135deg, #12101a, #161222);
+            border: 1px solid #2a2340;
+            border-radius: 12px;
+        }
+        .step-number {
+            flex-shrink: 0;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #5c3d8f, #7c5cbf);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .step-content { flex: 1; }
+        .step-content h3 {
+            margin-top: 0;
+            font-size: 1.15rem;
+        }
+
+        /* ===== CODE BLOCKS ===== */
+        pre {
+            background: #0d0b14;
+            border: 1px solid #2a2340;
+            border-radius: 8px;
+            padding: 16px 20px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #d4cee0;
+            margin: 12px 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            background: #1a1530;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #c9b8e8;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+            border-radius: 0;
+        }
+
+        /* Syntax highlights */
+        .kw { color: #c792ea; }
+        .fn { color: #82aaff; }
+        .st { color: #c3e88d; }
+        .cm { color: #546e7a; font-style: italic; }
+        .nb { color: #f78c6c; }
+        .op { color: #89ddff; }
+        .dc { color: #ffcb6b; }
+
+        /* ===== COLLAPSIBLE CODE ===== */
+        details {
+            margin: 12px 0;
+            border: 1px solid #2a2340;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        summary {
+            background: #12101a;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #c9b8e8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        summary:hover {
+            background: #1a1530;
+        }
+        summary::marker {
+            color: #7c5cbf;
+        }
+        .file-icon {
+            font-size: 0.85rem;
+        }
+        .file-path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #6b6280;
+            margin-left: auto;
+        }
+        details > pre {
+            margin: 0;
+            border: none;
+            border-top: 1px solid #2a2340;
+            border-radius: 0;
+        }
+
+        /* ===== INFO BOXES ===== */
+        .info-box {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 16px 0;
+            font-size: 0.9rem;
+        }
+        .info-box.tip {
+            background: #1a2520;
+            border: 1px solid #2a4040;
+            color: #80c0a0;
+        }
+        .info-box.warn {
+            background: #2a2010;
+            border: 1px solid #4a4020;
+            color: #d4a44c;
+        }
+        .info-box.danger {
+            background: #2a1010;
+            border: 1px solid #4a2020;
+            color: #d06060;
+        }
+
+        /* ===== ARCHITECTURE DIAGRAM ===== */
+        .arch-diagram {
+            background: #0d0b14;
+            border: 1px solid #2a2340;
+            border-radius: 12px;
+            padding: 32px;
+            margin: 24px 0;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            color: #8a8098;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        .arch-diagram .highlight { color: #7c5cbf; font-weight: 600; }
+        .arch-diagram .aws { color: #f0d68a; }
+        .arch-diagram .arrow { color: #3d3260; }
+
+        /* ===== TABLE ===== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #12101a;
+            color: #d4a44c;
+            text-align: left;
+            padding: 10px 16px;
+            border-bottom: 2px solid #2a2340;
+            font-weight: 600;
+        }
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #1a1530;
+            color: #b8b0c8;
+        }
+        tr:hover td {
+            background: #12101a40;
+        }
+
+        /* ===== PROJECT STRUCTURE ===== */
+        .tree {
+            background: #0d0b14;
+            border: 1px solid #2a2340;
+            border-radius: 8px;
+            padding: 20px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            color: #8a8098;
+            margin: 16px 0;
+        }
+        .tree .dir { color: #7c5cbf; font-weight: 500; }
+        .tree .file { color: #b8b0c8; }
+        .tree .desc { color: #546e7a; }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            border-top: 1px solid #2a234060;
+            margin-top: 60px;
+            color: #5a5270;
+            font-size: 0.85rem;
+        }
+        .footer a { color: #7c5cbf; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 640px) {
+            .step { flex-direction: column; }
+            .hero { padding: 40px 16px 32px; }
+            .container { padding: 20px 16px; }
+            pre { font-size: 0.75rem; padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== HERO ==================== -->
+<div class="hero">
+    <div class="hero-title">DungeonAI</div>
+    <p class="hero-subtitle">
+        Como construir um RPG text adventure com IA generativa na AWS usando
+        Amazon Bedrock, Strands Agents, DynamoDB, S3 e Streamlit.
+    </p>
+    <div class="hero-tags">
+        <span class="tag">Amazon Bedrock</span>
+        <span class="tag">Claude 3.5 Haiku</span>
+        <span class="tag">Titan Image Generator</span>
+        <span class="tag">Strands Agents SDK</span>
+        <span class="tag">DynamoDB</span>
+        <span class="tag">S3</span>
+        <span class="tag">Streamlit</span>
+        <span class="tag">Python</span>
+    </div>
+</div>
+
+<div class="container">
+
+<!-- ==================== INTRO ==================== -->
+<p>
+    Neste post, vou mostrar como construi o <strong>DungeonAI</strong> &mdash; um RPG
+    text adventure onde a IA narra a historia, gera as cenas em imagem, e gerencia
+    o estado do jogo (HP, inventario, XP) tudo rodando na AWS.
+</p>
+<p>
+    O jogador escolhe acoes ou digita livremente, e o agente de IA responde com narrativa
+    imersiva + uma imagem gerada para cada cena. O estado do jogo persiste no DynamoDB,
+    e as imagens ficam no S3.
+</p>
+
+<div class="info-box tip">
+    <strong>Repositorio:</strong> Todo o codigo esta disponivel no
+    <a href="https://github.com/cloudbymcn/dungeonai" target="_blank">GitHub &rarr; cloudbymcn/dungeonai</a>
+</div>
+
+<!-- ==================== ARQUITETURA ==================== -->
+<h2>Arquitetura</h2>
+
+<div class="arch-diagram">
+<span class="highlight">Jogador</span> <span class="arrow">&rarr;</span> <span class="highlight">Streamlit</span> <span class="arrow">&rarr;</span> <span class="highlight">Strands Agent</span> <span class="arrow">&rarr;</span> <span class="aws">Amazon Bedrock</span>
+                                              <span class="arrow">|</span>
+                            <span class="arrow">+--------------+--------------+</span>
+                            <span class="arrow">|</span>              <span class="arrow">|</span>              <span class="arrow">|</span>
+                    <span class="aws">Claude 3.5 Haiku</span>  <span class="aws">Titan Image V2</span>  <span class="aws">DynamoDB</span>
+                     <span class="desc">(narrativa)</span>      <span class="desc">(cenas)</span>        <span class="desc">(game state)</span>
+                                              <span class="arrow">|</span>
+                                           <span class="aws">S3 Bucket</span>
+                                        <span class="desc">(imagens salvas)</span>
+</div>
+
+<p>O fluxo de cada turno:</p>
+<ol>
+    <li>Jogador escolhe ou digita uma acao no Streamlit</li>
+    <li>O <strong>Strands Agent</strong> carrega o game state do DynamoDB</li>
+    <li><strong>Claude 3.5 Haiku</strong> gera a narrativa + prompt de imagem + mudancas de estado</li>
+    <li><strong>Titan Image Generator V2</strong> (Nova Canvas) gera a imagem da cena</li>
+    <li>Imagem e salva no S3, estado atualizado no DynamoDB</li>
+    <li>Tudo retorna ao frontend: narrativa + imagem + novo estado + sugestoes</li>
+</ol>
+
+<!-- ==================== SERVICOS ==================== -->
+<h2>Servicos AWS utilizados</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Servico</th>
+            <th>Funcao</th>
+            <th>Custo por sessao (~15 turnos)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Amazon Bedrock</strong> &mdash; Claude 3.5 Haiku</td>
+            <td>Gera narrativa, estado, sugestoes de acao</td>
+            <td>~$0.02</td>
+        </tr>
+        <tr>
+            <td><strong>Amazon Bedrock</strong> &mdash; Titan Image Generator V2</td>
+            <td>Gera imagem da cena a cada turno</td>
+            <td>~$0.40&ndash;0.80</td>
+        </tr>
+        <tr>
+            <td><strong>DynamoDB</strong></td>
+            <td>Persiste game state (HP, inventario, localizacao)</td>
+            <td>&lt; $0.01</td>
+        </tr>
+        <tr>
+            <td><strong>S3</strong></td>
+            <td>Armazena imagens geradas</td>
+            <td>&lt; $0.01</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="info-box tip">
+    <strong>Dica:</strong> Durante o desenvolvimento, comente a chamada do <code>generate_scene</code>
+    no <code>dungeon_master.py</code> e teste so a narrativa primeiro. A geracao de imagem e o custo mais alto.
+</div>
+
+<!-- ==================== ESTRUTURA ==================== -->
+<h2>Estrutura do Projeto</h2>
+
+<div class="tree">
+<span class="dir">dungeonai/</span>
+<span class="file">  .env.example</span>           <span class="desc"># Variaveis de ambiente (template)</span>
+<span class="file">  .gitignore</span>
+<span class="file">  requirements.txt</span>         <span class="desc"># Dependencias Python</span>
+<span class="dir">  agent/</span>
+<span class="file">    dungeon_master.py</span>      <span class="desc"># Orquestrador do agente (Strands)</span>
+<span class="dir">    prompts/</span>
+<span class="file">      system_prompt.txt</span>    <span class="desc"># Prompt do Dungeon Master</span>
+<span class="dir">    tools/</span>
+<span class="file">      narrate_story.py</span>     <span class="desc"># Tool: gera narrativa via Claude Haiku</span>
+<span class="file">      generate_scene.py</span>    <span class="desc"># Tool: gera imagem via Titan/Nova Canvas</span>
+<span class="file">      update_state.py</span>      <span class="desc"># Tool: leitura/escrita no DynamoDB</span>
+<span class="dir">  frontend/</span>
+<span class="file">    app.py</span>                 <span class="desc"># Interface Streamlit (dark fantasy theme)</span>
+<span class="dir">  docs/</span>
+<span class="dir">  tests/</span>
+</div>
+
+<!-- ==================== PASSO A PASSO ==================== -->
+<h2>Passo a passo</h2>
+
+<!-- STEP 1 -->
+<div class="step">
+    <div class="step-number">1</div>
+    <div class="step-content">
+        <h3>Configurar os models no Amazon Bedrock</h3>
+        <p>
+            Os models que usamos ja estao disponiveis no <strong>Model Catalog</strong> do Bedrock &mdash;
+            nao e necessario solicitar acesso manualmente.
+        </p>
+        <ol>
+            <li>Acesse o console AWS &rarr; procure <strong>Amazon Bedrock</strong></li>
+            <li>No menu lateral, clique em <strong>Model catalog</strong></li>
+            <li>Confirme que os seguintes models estao disponiveis na regiao <strong>us-east-1</strong>:
+                <ul>
+                    <li><strong>Anthropic</strong> &rarr; Claude 3.5 Haiku</li>
+                    <li><strong>Amazon</strong> &rarr; Titan Image Generator V2</li>
+                </ul>
+            </li>
+        </ol>
+        <div class="info-box tip">
+            Todos os models listados no Model Catalog ja estao liberados. Basta confirmar que aparecem na sua regiao.
+        </div>
+    </div>
+</div>
+
+<!-- STEP 2 -->
+<div class="step">
+    <div class="step-number">2</div>
+    <div class="step-content">
+        <h3>Criar a tabela no DynamoDB</h3>
+        <p>A tabela armazena o game state (HP, inventario, localizacao, historico) de cada sessao.</p>
+        <ol>
+            <li>Console AWS &rarr; <strong>DynamoDB</strong> &rarr; <strong>Create table</strong></li>
+            <li>Table name: <code>dungeonai-game-sessions</code></li>
+            <li>Partition key: <code>session_id</code> (tipo String)</li>
+            <li>Sort key: <em>deixe em branco</em></li>
+            <li>Table settings &rarr; <strong>Customize settings</strong></li>
+            <li>Capacity mode &rarr; <strong>On-demand</strong> (paga so pelo uso)</li>
+            <li>Clique <strong>Create table</strong></li>
+        </ol>
+        <div class="info-box warn">
+            <strong>Verificacao:</strong> Clique na tabela &rarr; aba <em>Explore table items</em> &rarr; deve estar vazia.
+        </div>
+    </div>
+</div>
+
+<!-- STEP 3 -->
+<div class="step">
+    <div class="step-number">3</div>
+    <div class="step-content">
+        <h3>Criar o bucket S3</h3>
+        <p>O bucket armazena as imagens geradas pelo Nova Canvas a cada turno do jogo.</p>
+        <ol>
+            <li>Console AWS &rarr; <strong>S3</strong> &rarr; <strong>Create bucket</strong></li>
+            <li>Bucket name: <code>dungeonai-scenes</code>
+                <br><em>Se o nome ja estiver em uso (S3 e global), use <code>dungeonai-scenes-SEU_ACCOUNT_ID</code>
+                e atualize a variavel <code>S3_BUCKET</code> em <code>generate_scene.py</code></em>
+            </li>
+            <li>Region: <strong>us-east-1</strong></li>
+            <li>Block Public Access: <strong>tudo marcado</strong> (as imagens sao acessadas pelo backend via SDK)</li>
+            <li>Clique <strong>Create bucket</strong></li>
+        </ol>
+    </div>
+</div>
+
+<!-- STEP 4 -->
+<div class="step">
+    <div class="step-number">4</div>
+    <div class="step-content">
+        <h3>Configurar credenciais AWS</h3>
+        <p>O Streamlit roda localmente e precisa de credenciais para acessar Bedrock, DynamoDB e S3.</p>
+        <h4>Opcao A &mdash; AWS CLI (recomendado)</h4>
+<pre><code>aws configure
+# AWS Access Key ID: sua-access-key
+# AWS Secret Access Key: sua-secret-key
+# Default region: us-east-1
+# Default output: json</code></pre>
+        <h4>Opcao B &mdash; Arquivo .env</h4>
+<pre><code>cp .env.example .env
+# Edite o .env com suas credenciais
+# NUNCA commite o .env (ja esta no .gitignore)</code></pre>
+
+        <h4>Permissoes IAM necessarias</h4>
+        <details>
+            <summary>
+                <span class="file-icon">🔐</span> IAM Policy JSON
+                <span class="file-path">copie e cole no IAM</span>
+            </summary>
+<pre><code>{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:InvokeModel",
+                "bedrock:Converse"
+            ],
+            "Resource": "arn:aws:bedrock:us-east-1::foundation-model/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem"
+            ],
+            "Resource": "arn:aws:dynamodb:us-east-1:*:table/dungeonai-game-sessions"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject"
+            ],
+            "Resource": "arn:aws:s3:::dungeonai-scenes/*"
+        }
+    ]
+}</code></pre>
+        </details>
+    </div>
+</div>
+
+<!-- STEP 5 -->
+<div class="step">
+    <div class="step-number">5</div>
+    <div class="step-content">
+        <h3>Criar o projeto e instalar dependencias</h3>
+<pre><code>mkdir dungeonai && cd dungeonai
+git init
+mkdir -p agent/prompts agent/tools frontend tests docs</code></pre>
+
+        <details>
+            <summary>
+                <span class="file-icon">📦</span> requirements.txt
+                <span class="file-path">raiz do projeto</span>
+            </summary>
+<pre><code>strands-agents>=0.1.0
+strands-agents-tools>=0.1.0
+boto3>=1.35.0
+streamlit>=1.40.0
+python-dotenv>=1.0.0
+Pillow>=10.0.0</code></pre>
+        </details>
+
+        <details>
+            <summary>
+                <span class="file-icon">⚙️</span> .env.example
+                <span class="file-path">raiz do projeto</span>
+            </summary>
+<pre><code>AWS_REGION=us-east-1
+AWS_PROFILE=default
+
+# DynamoDB
+DYNAMODB_TABLE_NAME=dungeonai-game-sessions
+
+# S3
+S3_BUCKET_NAME=dungeonai-scenes
+
+# Bedrock Models
+NARRATIVE_MODEL_ID=us.anthropic.claude-3-5-haiku-20241022-v1:0
+IMAGE_MODEL_ID=amazon.titan-image-generator-v2:0</code></pre>
+        </details>
+
+        <details>
+            <summary>
+                <span class="file-icon">🚫</span> .gitignore
+                <span class="file-path">raiz do projeto</span>
+            </summary>
+<pre><code># Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+
+# Environment
+.env
+
+# AWS
+.aws-sam/
+samconfig.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project
+generated_images/
+*.png
+!docs/*.png</code></pre>
+        </details>
+
+<pre><code>pip install -r requirements.txt</code></pre>
+    </div>
+</div>
+
+<!-- STEP 6 -->
+<div class="step">
+    <div class="step-number">6</div>
+    <div class="step-content">
+        <h3>Criar o System Prompt do Dungeon Master</h3>
+        <p>
+            O prompt define a personalidade da IA, as regras de combate, o mundo do jogo,
+            e o formato de output. Esse e o coracao do agente &mdash; quanto mais detalhado, melhor a experiencia.
+        </p>
+
+        <details>
+            <summary>
+                <span class="file-icon">📜</span> system_prompt.txt
+                <span class="file-path">agent/prompts/system_prompt.txt</span>
+            </summary>
+<pre><code>You are Eldrath, an ancient and theatrical Dungeon Master narrating a dark fantasy RPG.
+Your voice is dramatic yet concise — like a bard recounting legends by firelight.
+
+============================
+NARRATIVE RULES
+============================
+- Write in Brazilian Portuguese, second person ("Voce entra na caverna...")
+- Each narrative beat: 2-3 short paragraphs (max 600 characters total)
+- First paragraph: immediate consequence of the player's action
+- Second paragraph: what the player now perceives (senses, atmosphere, danger)
+- Optional third paragraph: only for dramatic moments (combat result, discovery, death)
+- Use vivid sensory details: sounds echoing, cold air, the smell of damp stone, flickering light
+- Vary sentence length — mix short punchy lines with longer atmospheric ones
+- Never repeat the player's action back verbatim; show the result, not the intent
+- End every beat with exactly 3 suggested actions (short, 5-10 words each)
+- Suggested actions should be meaningfully different: one cautious, one bold, one creative
+
+============================
+TONE &amp; PERSONALITY
+============================
+- You are not neutral — you have personality. React to player choices:
+  - Reckless actions → ominous foreshadowing ("As sombras parecem se mover...")
+  - Clever actions → subtle praise woven into narration ("Seus olhos treinados percebem...")
+  - Cowardly retreats → eerie tension ("O silencio atras de voce e quase pior...")
+- Use dramatic irony: hint at dangers the player hasn't discovered yet
+- Maintain continuity: reference previous events and choices when relevant
+- The world reacts to the player — NPCs remember, environments change
+
+============================
+COMBAT SYSTEM
+============================
+Players have base stats: STR 14, DEX 12, INT 10 (can improve with items/levels).
+
+When combat occurs:
+1. Roll logic: d20 + relevant stat modifier vs difficulty (easy=8, medium=12, hard=16, deadly=20)
+   - STR: melee attacks, breaking things, grappling
+   - DEX: ranged attacks, dodging, stealth
+   - INT: magic, puzzles, identifying creatures
+2. Damage: success = 5-15 dmg to enemy; failure = player takes 5-20 HP loss
+3. Critical (nat 20 equivalent): double effect + bonus loot/XP
+4. Critical fail (nat 1 equivalent): something goes wrong — weapon breaks, trap triggers
+5. Never show dice numbers in narrative — describe outcomes dramatically
+6. Award 15-30 XP for combat encounters, 10-20 XP for clever non-combat solutions
+
+============================
+PROGRESSION &amp; ECONOMY
+============================
+- HP: max 100, potions restore 20-40 HP, resting restores 10 HP
+- Gold: found in chests (5-20), dropped by enemies (3-10), reward for quests (20-50)
+- XP: level up every 100 XP. Each level: +10 max HP
+- Items: weapons have tiers (iron → steel → enchanted), give narrative combat bonuses
+- Inventory limit: 8 items. If full, player must drop something
+- Death is permanent for the session — make it dramatic and memorable
+
+============================
+GAME WORLD: THE CAVERNS OF ELDRATH
+============================
+An ancient underground kingdom where crystals pulse with residual magic from a fallen civilization.
+
+KEY LOCATIONS (reveal progressively):
+- Entrada das Cavernas: mossy stone arch, cold wind, faint purple glow from within
+- Salao dos Cristais: massive cavern with crystalline pillars that hum with energy
+- Ponte do Abismo: narrow stone bridge over a bottomless chasm, wind howling from below
+- Forja Abandonada: dwarven smithy with still-warm coals and scattered tools
+- Santuario Submerso: flooded temple with bioluminescent water and submerged statues
+- Trono de Eldrath: final chamber, throne of black crystal, the source of all magic
+
+CREATURES:
+- Sombras Rastejantes: shadow creatures, weak but attack in groups (easy)
+- Golem de Cristal: slow but devastating, vulnerable to magic (hard)
+- Aranhas Cavernosas: ambush predators, webs slow movement (medium)
+- O Guardiao: ancient construct protecting the throne room (deadly)
+- Espiritos dos Antigos: ethereal beings, can be hostile or helpful depending on approach
+
+NPCS:
+- Lira: a trapped explorer, can become an ally if rescued (found in Salao dos Cristais)
+- O Mercador Cego: mysterious trader who appears randomly, sells potions and info for gold
+
+============================
+IMAGE PROMPT RULES
+============================
+When generating the image_prompt field, write ONE English sentence (max 30 words) describing
+the visual scene for an AI image generator. Rules:
+- Style: dark fantasy digital painting, atmospheric lighting, rich colors
+- Focus on: environment first, then key objects, then mood/lighting
+- NEVER include: text, UI elements, people/characters, hands, faces
+- NEVER use generic prompts — each scene should feel unique
+
+============================
+OUTPUT FORMAT
+============================
+You MUST respond with valid JSON only. No markdown, no code fences, no explanation outside the JSON.
+
+{
+    "narrative": "Narrative text in Brazilian Portuguese...",
+    "image_prompt": "One English sentence, max 30 words, dark fantasy style",
+    "state_changes": {
+        "hp_delta": 0,
+        "gold_delta": 0,
+        "xp_delta": 0,
+        "new_items": [],
+        "removed_items": [],
+        "new_location": "current or new location name"
+    },
+    "suggested_actions": ["acao curta 1", "acao curta 2", "acao curta 3"]
+}</code></pre>
+        </details>
+
+        <p>
+            Pontos-chave do prompt:
+        </p>
+        <ul>
+            <li><strong>Personalidade:</strong> O DM (Eldrath) reage ao estilo do jogador &mdash; ousadia, covardia, inteligencia</li>
+            <li><strong>Combate d20:</strong> Sistema de dados simulado com STR/DEX/INT, sem mostrar numeros na narrativa</li>
+            <li><strong>Mundo detalhado:</strong> 6 locais, 5 criaturas, 2 NPCs &mdash; tudo progressivo</li>
+            <li><strong>Output estruturado:</strong> JSON com narrativa, prompt de imagem, mudancas de estado e sugestoes</li>
+        </ul>
+    </div>
+</div>
+
+<!-- STEP 7 -->
+<div class="step">
+    <div class="step-number">7</div>
+    <div class="step-content">
+        <h3>Criar as Tools do Agente</h3>
+        <p>
+            O agente usa 3 tools: uma para narrar a historia (Claude Haiku),
+            uma para gerar a imagem da cena (Titan/Nova Canvas), e uma para gerenciar o estado do jogo (DynamoDB).
+        </p>
+
+        <details>
+            <summary>
+                <span class="file-icon">📖</span> narrate_story.py &mdash; Narrativa via Claude Haiku
+                <span class="file-path">agent/tools/narrate_story.py</span>
+            </summary>
+<pre><code>import json
+import boto3
+from strands import tool
+
+bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
+
+MODEL_ID = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+
+
+@tool
+def narrate_story(
+    player_action: str,
+    game_state: dict,
+    scene_history: list[str] = None,
+) -> dict:
+    """Generate the next narrative beat based on the player's action
+    and current game state.
+
+    Args:
+        player_action: What the player wants to do
+        game_state: Current game state with hp, gold, xp, level, inventory, location
+        scene_history: List of the last 3 scene summaries for continuity
+
+    Returns:
+        dict with narrative text, image prompt, state changes, and suggested actions
+    """
+    history_context = ""
+    if scene_history:
+        history_context = "Cenas anteriores:\n" + "\n".join(
+            f"- {s}" for s in scene_history[-3:]
+        )
+
+    prompt = f"""Voce e o Dungeon Master. Baseado na acao do jogador e no estado atual,
+narre o proximo acontecimento.
+
+Estado atual do jogo:
+- HP: {game_state.get('hp', 100)}/100
+- Gold: {game_state.get('gold', 10)}
+- XP: {game_state.get('xp', 0)}
+- Level: {game_state.get('level', 1)}
+- Inventario: {json.dumps(game_state.get('inventory', []), ensure_ascii=False)}
+- Localizacao: {game_state.get('location', 'Entrada das Cavernas de Eldrath')}
+
+{history_context}
+
+Acao do jogador: {player_action}
+
+Responda APENAS com JSON valido (sem markdown, sem ```):
+{{
+    "narrative": "Narrativa em portugues, 2-4 paragrafos, segunda pessoa",
+    "image_prompt": "One English sentence describing the visual scene, fantasy art style",
+    "state_changes": {{
+        "hp_delta": 0,
+        "gold_delta": 0,
+        "xp_delta": 0,
+        "new_items": [],
+        "removed_items": [],
+        "new_location": "nome do local atual ou novo"
+    }},
+    "suggested_actions": ["acao 1", "acao 2", "acao 3"]
+}}"""
+
+    response = bedrock.converse(
+        modelId=MODEL_ID,
+        messages=[{"role": "user", "content": [{"text": prompt}]}],
+        inferenceConfig={"maxTokens": 1024, "temperature": 0.8},
+    )
+
+    raw = response["output"]["message"]["content"][0]["text"]
+
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        result = {
+            "narrative": raw,
+            "image_prompt": "A mysterious dark fantasy cave with glowing crystals, atmospheric lighting",
+            "state_changes": {
+                "hp_delta": 0, "gold_delta": 0, "xp_delta": 0,
+                "new_items": [], "removed_items": [],
+                "new_location": game_state.get("location", "Desconhecido"),
+            },
+            "suggested_actions": [
+                "Explorar os arredores",
+                "Voltar pelo caminho anterior",
+                "Descansar por um momento",
+            ],
+        }
+
+    return result</code></pre>
+        </details>
+
+        <details>
+            <summary>
+                <span class="file-icon">🎨</span> generate_scene.py &mdash; Imagem via Titan/Nova Canvas
+                <span class="file-path">agent/tools/generate_scene.py</span>
+            </summary>
+<pre><code>import json
+import base64
+import uuid
+import boto3
+from strands import tool
+
+bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
+s3 = boto3.client("s3", region_name="us-east-1")
+
+IMAGE_MODEL_ID = "amazon.titan-image-generator-v2:0"
+S3_BUCKET = "dungeonai-scenes"
+
+
+@tool
+def generate_scene(image_prompt: str, session_id: str) -> dict:
+    """Generate a scene image based on the narrative description.
+
+    Args:
+        image_prompt: English description of the scene to generate
+        session_id: Current game session ID for organizing images in S3
+
+    Returns:
+        dict with s3_key and image_bytes (base64) of the generated scene
+    """
+    styled_prompt = (
+        f"{image_prompt}, "
+        "dark fantasy art style, "
+        "detailed environment, "
+        "dramatic lighting, "
+        "painterly illustration, "
+        "no text, no UI elements, no people"
+    )
+
+    body = json.dumps(
+        {
+            "taskType": "TEXT_IMAGE",
+            "textToImageParams": {"text": styled_prompt},
+            "imageGenerationConfig": {
+                "numberOfImages": 1,
+                "quality": "standard",
+                "cfgScale": 7.0,
+                "height": 768,
+                "width": 1280,
+                "seed": 0,
+            },
+        }
+    )
+
+    response = bedrock.invoke_model(
+        modelId=IMAGE_MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=body,
+    )
+
+    result = json.loads(response["body"].read())
+    image_b64 = result["images"][0]
+
+    # Save to S3
+    image_key = f"sessions/{session_id}/{uuid.uuid4().hex[:8]}.png"
+    s3.put_object(
+        Bucket=S3_BUCKET,
+        Key=image_key,
+        Body=base64.b64decode(image_b64),
+        ContentType="image/png",
+    )
+
+    return {
+        "s3_key": image_key,
+        "image_base64": image_b64,
+    }</code></pre>
+        </details>
+
+        <details>
+            <summary>
+                <span class="file-icon">💾</span> update_state.py &mdash; Game State no DynamoDB
+                <span class="file-path">agent/tools/update_state.py</span>
+            </summary>
+<pre><code>import json
+from datetime import datetime, timezone
+import boto3
+from strands import tool
+
+dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+table = dynamodb.Table("dungeonai-game-sessions")
+
+
+def _default_state() -> dict:
+    """Return a fresh game state for new sessions."""
+    return {
+        "hp": 100,
+        "gold": 10,
+        "xp": 0,
+        "level": 1,
+        "inventory": ["Espada de ferro", "Tocha"],
+        "location": "Entrada das Cavernas de Eldrath",
+        "turn": 0,
+        "scene_history": [],
+        "status": "active",
+    }
+
+
+@tool
+def update_game_state(session_id: str, state_changes: dict = None) -> dict:
+    """Load, update, and persist the game state in DynamoDB.
+
+    If no state_changes are provided, returns the current state (or creates a new one).
+
+    Args:
+        session_id: Unique game session identifier
+        state_changes: Changes to apply (hp_delta, gold_delta, xp_delta,
+                       new_items, removed_items, new_location)
+
+    Returns:
+        The updated game state dict
+    """
+    # Load current state
+    try:
+        response = table.get_item(Key={"session_id": session_id})
+        state = response.get("Item", {}).get("game_state")
+        if state:
+            state = json.loads(state) if isinstance(state, str) else state
+        else:
+            state = _default_state()
+    except Exception:
+        state = _default_state()
+
+    # Apply changes
+    if state_changes:
+        state["hp"] = max(0, min(100, state["hp"] + state_changes.get("hp_delta", 0)))
+        state["gold"] = max(0, state["gold"] + state_changes.get("gold_delta", 0))
+        state["xp"] += state_changes.get("xp_delta", 0)
+
+        new_level = 1 + state["xp"] // 100
+        if new_level > state["level"]:
+            state["level"] = new_level
+
+        for item in state_changes.get("new_items", []):
+            if item and item not in state["inventory"]:
+                state["inventory"].append(item)
+
+        for item in state_changes.get("removed_items", []):
+            if item in state["inventory"]:
+                state["inventory"].remove(item)
+
+        if state_changes.get("new_location"):
+            state["location"] = state_changes["new_location"]
+
+        state["turn"] += 1
+
+        if state["hp"] &lt;= 0:
+            state["status"] = "dead"
+
+    # Persist
+    table.put_item(
+        Item={
+            "session_id": session_id,
+            "game_state": json.dumps(state, ensure_ascii=False),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+    return state</code></pre>
+        </details>
+
+        <details>
+            <summary>
+                <span class="file-icon">📦</span> __init__.py
+                <span class="file-path">agent/__init__.py e agent/tools/__init__.py</span>
+            </summary>
+<pre><code>from agent.tools.narrate_story import narrate_story
+from agent.tools.generate_scene import generate_scene
+from agent.tools.update_state import update_game_state
+
+__all__ = ["narrate_story", "generate_scene", "update_game_state"]</code></pre>
+        </details>
+    </div>
+</div>
+
+<!-- STEP 8 -->
+<div class="step">
+    <div class="step-number">8</div>
+    <div class="step-content">
+        <h3>Criar o Orquestrador (Dungeon Master Agent)</h3>
+        <p>
+            O <code>dungeon_master.py</code> conecta tudo: cria o agente Strands com as tools
+            e orquestra o fluxo de cada turno.
+        </p>
+
+        <details>
+            <summary>
+                <span class="file-icon">🧠</span> dungeon_master.py
+                <span class="file-path">agent/dungeon_master.py</span>
+            </summary>
+<pre><code>import uuid
+from pathlib import Path
+from strands import Agent
+from strands.models.bedrock import BedrockModel
+
+from agent.tools.narrate_story import narrate_story
+from agent.tools.generate_scene import generate_scene
+from agent.tools.update_state import update_game_state
+
+SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "system_prompt.txt").read_text()
+
+
+def create_agent() -> Agent:
+    """Create and return the Dungeon Master agent."""
+    model = BedrockModel(
+        model_id="us.anthropic.claude-3-5-haiku-20241022-v1:0",
+        region_name="us-east-1",
+    )
+    return Agent(
+        model=model,
+        system_prompt=SYSTEM_PROMPT,
+        tools=[narrate_story, generate_scene, update_game_state],
+    )
+
+
+def play_turn(agent: Agent, session_id: str, player_action: str) -> dict:
+    """Execute a single game turn.
+
+    Flow:
+    1. Load current game state from DynamoDB
+    2. Generate narrative based on player action (Claude Haiku)
+    3. Generate scene image from the narrative (Titan Image Gen)
+    4. Update and persist game state
+    5. Return everything to the frontend
+    """
+    # Load state
+    game_state = update_game_state(session_id=session_id)
+
+    # Generate narrative
+    story = narrate_story(
+        player_action=player_action,
+        game_state=game_state,
+        scene_history=game_state.get("scene_history", []),
+    )
+
+    # Generate scene image
+    scene = generate_scene(
+        image_prompt=story["image_prompt"],
+        session_id=session_id,
+    )
+
+    # Update state
+    updated_state = update_game_state(
+        session_id=session_id,
+        state_changes=story["state_changes"],
+    )
+
+    # Track scene history (last 5)
+    scene_summary = story["narrative"][:120]
+    history = updated_state.get("scene_history", [])
+    history.append(scene_summary)
+    if len(history) > 5:
+        history = history[-5:]
+    updated_state["scene_history"] = history
+
+    update_game_state(
+        session_id=session_id,
+        state_changes={"hp_delta": 0, "gold_delta": 0, "xp_delta": 0},
+    )
+
+    return {
+        "narrative": story["narrative"],
+        "image_base64": scene["image_base64"],
+        "image_s3_key": scene["s3_key"],
+        "game_state": updated_state,
+        "suggested_actions": story["suggested_actions"],
+    }
+
+
+def new_session() -> str:
+    """Start a new game session and return the session ID."""
+    session_id = uuid.uuid4().hex[:12]
+    update_game_state(session_id=session_id)
+    return session_id</code></pre>
+        </details>
+    </div>
+</div>
+
+<!-- STEP 9 -->
+<div class="step">
+    <div class="step-number">9</div>
+    <div class="step-content">
+        <h3>Criar o Frontend (Streamlit + Dark Fantasy Theme)</h3>
+        <p>
+            O frontend usa Streamlit com CSS customizado para criar um tema dark fantasy
+            com barras de HP/XP, inventario estilizado, e loading animado durante as chamadas ao Bedrock.
+        </p>
+
+        <details>
+            <summary>
+                <span class="file-icon">🎮</span> app.py &mdash; Frontend completo (expandir para ver ~700 linhas)
+                <span class="file-path">frontend/app.py</span>
+            </summary>
+<pre><code>"""
+DungeonAI — Streamlit Frontend
+RPG text adventure with AI-generated scene images.
+Dark fantasy themed UI.
+"""
+
+import base64
+import streamlit as st
+from agent.dungeon_master import create_agent, play_turn, new_session
+
+# --- Page config ---
+st.set_page_config(
+    page_title="DungeonAI",
+    page_icon="⚔️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# --- Dark Fantasy Theme ---
+st.markdown(
+    """
+    &lt;style&gt;
+    @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&amp;family=Inter:wght@400;500;600&amp;display=swap');
+
+    /* Global dark theme */
+    .stApp {
+        background: linear-gradient(170deg, #0a0a0f 0%, #12101a 40%, #0d0b14 100%);
+        color: #c9c2d4;
+    }
+
+    header[data-testid="stHeader"] { background: transparent !important; }
+    footer { display: none !important; }
+
+    /* ... (CSS completo no repositorio GitHub) ... */
+
+    .stDeployButton { display: none !important; }
+    #MainMenu { display: none !important; }
+    &lt;/style&gt;
+    """,
+    unsafe_allow_html=True,
+)
+
+# --- Session state init ---
+def init_session():
+    if "initialized" not in st.session_state:
+        st.session_state.initialized = False
+        st.session_state.session_id = None
+        st.session_state.agent = None
+        st.session_state.game_state = None
+        st.session_state.narrative = (
+            "As Cavernas de Eldrath se erguem diante de voce. "
+            "A entrada escura exala um ar frio e umido. "
+            "Cristais fracos pulsam nas paredes de pedra, "
+            "como se a propria montanha respirasse.\n\n"
+            "Voce segura sua tocha com firmeza e da o primeiro passo."
+        )
+        st.session_state.image_b64 = None
+        st.session_state.suggested_actions = [
+            "Entrar na caverna com a tocha erguida",
+            "Examinar os cristais na entrada",
+            "Procurar pegadas no chao",
+        ]
+        st.session_state.turn_log = []
+        st.session_state.processing = False
+        st.session_state.pending_action = None
+
+init_session()
+
+# --- Queue action (instant rerun with loading screen) ---
+def queue_action(action: str):
+    st.session_state.pending_action = action
+    st.session_state.processing = True
+
+# --- Process pending action at top of rerun ---
+if st.session_state.pending_action and st.session_state.processing:
+    action = st.session_state.pending_action
+
+    st.markdown(f"""
+        &lt;div class="loading-overlay"&gt;
+            &lt;div class="loading-spinner"&gt;&lt;/div&gt;
+            &lt;div class="loading-text"&gt;O Dungeon Master narra...&lt;/div&gt;
+            &lt;div class="loading-sub"&gt;"{action[:80]}"&lt;/div&gt;
+        &lt;/div&gt;
+    """, unsafe_allow_html=True)
+
+    try:
+        result = play_turn(
+            agent=st.session_state.agent,
+            session_id=st.session_state.session_id,
+            player_action=action,
+        )
+        st.session_state.narrative = result["narrative"]
+        st.session_state.image_b64 = result["image_base64"]
+        st.session_state.game_state = result["game_state"]
+        st.session_state.suggested_actions = result["suggested_actions"]
+        turn_num = result["game_state"].get("turn", 0)
+        st.session_state.turn_log.insert(
+            0, f"&lt;strong&gt;Turno {turn_num}&lt;/strong&gt; — {action[:60]}"
+        )
+    except Exception as e:
+        st.session_state._last_error = str(e)
+
+    st.session_state.pending_action = None
+    st.session_state.processing = False
+    st.rerun()
+
+# ... Welcome screen, game header, main layout, sidebar ...
+# (Codigo completo no repositorio GitHub)
+# A UI inclui:
+# - Tela de boas-vindas com lore
+# - Stats inline (HP, Gold, XP, Level, Turno)
+# - Imagem da cena com frame estilizado
+# - Narrativa com borda lateral roxa
+# - Botoes de acao com hover animado
+# - Input livre para acoes customizadas
+# - Sidebar com barras de HP/XP/Gold, inventario, e historico</code></pre>
+        </details>
+
+        <div class="info-box tip">
+            <strong>Nota:</strong> O CSS completo tem ~350 linhas com tema dark fantasy, animacoes,
+            barras de stats customizadas, e loading overlay. Confira o arquivo completo no
+            <a href="https://github.com/cloudbymcn/dungeonai/blob/main/frontend/app.py" target="_blank">repositorio</a>.
+        </div>
+    </div>
+</div>
+
+<!-- STEP 10 -->
+<div class="step">
+    <div class="step-number">10</div>
+    <div class="step-content">
+        <h3>Rodar o jogo</h3>
+<pre><code>python -m streamlit run frontend/app.py</code></pre>
+        <p>
+            O Streamlit abre no browser em <code>http://localhost:8501</code>.
+            Clique <strong>Iniciar Aventura</strong>, escolha uma acao ou digite a sua, e o agente
+            gera a narrativa + imagem da cena em tempo real.
+        </p>
+    </div>
+</div>
+
+<!-- ==================== COMO FUNCIONA ==================== -->
+<h2>Como funciona por dentro</h2>
+
+<h3>O ciclo de um turno</h3>
+<p>Quando o jogador clica em uma acao ou digita algo:</p>
+<ol>
+    <li>A acao e enfileirada no <code>session_state</code> e o Streamlit faz um <strong>rerun</strong></li>
+    <li>No topo do rerun, detectamos a acao pendente e mostramos a <strong>tela de loading</strong></li>
+    <li><code>play_turn()</code> e chamado, que:
+        <ul>
+            <li>Carrega o estado do DynamoDB</li>
+            <li>Envia o estado + acao para o <strong>Claude 3.5 Haiku</strong> via <code>bedrock.converse()</code></li>
+            <li>Claude retorna JSON com narrativa, prompt de imagem, e mudancas de estado</li>
+            <li>O prompt de imagem vai para o <strong>Titan Image Generator V2</strong> via <code>bedrock.invoke_model()</code></li>
+            <li>A imagem e salva no S3 e retornada em base64</li>
+            <li>O estado e atualizado no DynamoDB</li>
+        </ul>
+    </li>
+    <li>Outro <strong>rerun</strong> renderiza a nova cena</li>
+</ol>
+
+<h3>Por que Strands Agents?</h3>
+<p>
+    O <a href="https://github.com/strands-agents/sdk-python" target="_blank">Strands Agents SDK</a>
+    e um framework open-source da AWS para construir agentes de IA. Ele permite:
+</p>
+<ul>
+    <li>Definir tools como funcoes Python decoradas com <code>@tool</code></li>
+    <li>Conectar diretamente ao Amazon Bedrock sem configuracao extra</li>
+    <li>Orquestrar chamadas entre LLM, ferramentas e estado</li>
+</ul>
+
+<h3>Por que Claude Haiku para narrativa?</h3>
+<ul>
+    <li><strong>Rapido:</strong> Latencia baixa para manter o jogo fluido</li>
+    <li><strong>Barato:</strong> ~$0.001 por turno de narrativa</li>
+    <li><strong>Bom em PT-BR:</strong> Gera narrativa natural em portugues</li>
+    <li><strong>JSON confiavel:</strong> Segue o formato de output com consistencia</li>
+</ul>
+
+<!-- ==================== TROUBLESHOOTING ==================== -->
+<h2>Troubleshooting</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Erro</th>
+            <th>Causa provavel</th>
+            <th>Solucao</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>AccessDeniedException</code></td>
+            <td>Model nao disponivel ou sem permissao IAM</td>
+            <td>Verifique Model Catalog + IAM policy</td>
+        </tr>
+        <tr>
+            <td><code>ResourceNotFoundException</code></td>
+            <td>Tabela DynamoDB nao existe</td>
+            <td>Confirme o nome <code>dungeonai-game-sessions</code> em us-east-1</td>
+        </tr>
+        <tr>
+            <td><code>NoSuchBucket</code></td>
+            <td>Bucket S3 nao existe</td>
+            <td>Confirme o bucket e atualize <code>S3_BUCKET</code> se necessario</td>
+        </tr>
+        <tr>
+            <td>Imagem nao aparece</td>
+            <td>Titan Image Gen com erro</td>
+            <td>Verifique logs no terminal; teste so narrativa primeiro</td>
+        </tr>
+        <tr>
+            <td><code>streamlit: command not found</code></td>
+            <td>Streamlit nao esta no PATH</td>
+            <td>Use <code>python -m streamlit run frontend/app.py</code></td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- ==================== PROXIMOS PASSOS ==================== -->
+<h2>Proximos passos</h2>
+<ul>
+    <li>Deploy serverless com AWS Lambda + API Gateway</li>
+    <li>Multiplayer com WebSockets (API Gateway v2)</li>
+    <li>Sistema de save/load com autenticacao (Cognito)</li>
+    <li>Mais locais, criaturas e NPCs no prompt</li>
+    <li>Troca de model para Claude Sonnet em momentos criticos (boss fights)</li>
+</ul>
+
+<!-- ==================== FOOTER ==================== -->
+<div class="footer">
+    <p>
+        Feito por <strong>Matheus Nascimento</strong>
+        &mdash; <a href="https://github.com/cloudbymcn/dungeonai" target="_blank">GitHub</a>
+    </p>
+    <p style="margin-top: 8px; color: #3d3555;">
+        Construido com Amazon Bedrock, Strands Agents, DynamoDB, S3 e Streamlit.
+    </p>
+</div>
+
+</div><!-- .container -->
+
+</body>
+</html>

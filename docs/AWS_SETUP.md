@@ -7,22 +7,19 @@ Guia completo para configurar todos os serviços AWS necessários para rodar o D
 
 ---
 
-## 1. Habilitar os models no Amazon Bedrock
+## 1. Verificar os models no Amazon Bedrock
 
-Antes de tudo, você precisa pedir acesso aos dois models que o projeto usa.
+Os models usados pelo projeto estão disponíveis diretamente no Model Catalog — não é mais necessário solicitar acesso manualmente.
 
 1. Acesse o console AWS → procure **Amazon Bedrock**
-2. No menu lateral, clique em **Model access** (dentro de Bedrock configurations)
-3. Clique em **Modify model access**
-4. Marque os seguintes models:
+2. No menu lateral, clique em **Model catalog**
+3. Confirme que os seguintes models estão disponíveis na região **us-east-1**:
    - **Anthropic** → Claude 3.5 Haiku ✅
    - **Amazon** → Titan Image Generator V2 ✅
-5. Clique **Next** → **Submit**
 
-> O acesso ao Claude Haiku pode levar alguns minutos para ser aprovado.
-> O Titan Image Generator (Nova Canvas) da Amazon costuma ser aprovado instantaneamente.
+> Todos os models listados no Model Catalog já estão liberados para uso. Basta confirmar que aparecem na sua região.
 
-**Como verificar:** Volte em Model access e confirme que o status está **Access granted** para ambos.
+**Como verificar:** No Model Catalog, busque pelos nomes e confirme que o botão de uso/teste está habilitado.
 
 ---
 

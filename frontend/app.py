@@ -626,7 +626,7 @@ with col_main:
             use_container_width=True,
         )
         if submitted and custom_action:
-            process_action(custom_action)
+            queue_action(custom_action)
             st.rerun()
 
 
