@@ -95,7 +95,7 @@ cp .env.example .env
 # Edit .env with your AWS credentials/region
 
 # 4. Run locally
-streamlit run frontend/app.py
+python -m streamlit run frontend/app.py
 ```
 
 ## Prerequisites
