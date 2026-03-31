@@ -314,6 +314,56 @@ st.markdown(
         background: #1a1530 !important;
     }
 
+    /* Loading overlay */
+    .loading-overlay {
+        background: linear-gradient(135deg, #1a153090, #0a0a0f90);
+        border: 1px solid #3d3260;
+        border-radius: 12px;
+        padding: 40px 24px;
+        text-align: center;
+        margin: 20px 0;
+    }
+    .loading-text {
+        font-family: 'MedievalSharp', cursive;
+        color: #d4a44c;
+        font-size: 1.3rem;
+        margin-bottom: 12px;
+    }
+    .loading-sub {
+        color: #6b6280;
+        font-size: 0.85rem;
+        font-style: italic;
+    }
+    .loading-dots::after {
+        content: '';
+        animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes dots {
+        0% { content: ''; }
+        25% { content: '.'; }
+        50% { content: '..'; }
+        75% { content: '...'; }
+    }
+    .loading-spinner {
+        display: inline-block;
+        width: 32px;
+        height: 32px;
+        border: 3px solid #2a2340;
+        border-top: 3px solid #7c5cbf;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Disabled action area */
+    .actions-disabled {
+        opacity: 0.3;
+        pointer-events: none;
+    }
+
     /* Hide streamlit default elements */
     .stDeployButton { display: none !important; }
     #MainMenu { display: none !important; }
@@ -345,6 +395,7 @@ def init_session():
         ]
         st.session_state.turn_log = []
         st.session_state.processing = False
+        st.session_state.pending_action = None
 
 
 init_session()
@@ -391,9 +442,28 @@ def start_game():
         st.session_state.initialized = True
 
 
-# --- Process turn ---
-def process_action(action: str):
+# --- Queue an action (instant — just sets state and reruns) ---
+def queue_action(action: str):
+    st.session_state.pending_action = action
     st.session_state.processing = True
+
+
+# --- Process pending action (runs at top of rerun with visible feedback) ---
+if st.session_state.pending_action and st.session_state.processing:
+    action = st.session_state.pending_action
+
+    # Show loading screen immediately
+    st.markdown(
+        f"""
+        <div class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">O Dungeon Master narra<span class="loading-dots"></span></div>
+            <div class="loading-sub">"{action[:80]}"</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     try:
         result = play_turn(
             agent=st.session_state.agent,
@@ -409,8 +479,16 @@ def process_action(action: str):
             0, f"<strong>Turno {turn_num}</strong> — {action[:60]}"
         )
     except Exception as e:
-        st.error(f"Erro no turno: {e}")
+        st.session_state._last_error = str(e)
+
+    st.session_state.pending_action = None
     st.session_state.processing = False
+    st.rerun()
+
+# Show error from previous turn if any
+if hasattr(st.session_state, "_last_error") and st.session_state._last_error:
+    st.error(f"Erro no turno anterior: {st.session_state._last_error}")
+    st.session_state._last_error = None
 
 
 # ============================
@@ -532,7 +610,7 @@ with col_main:
                 key=f"choice_{i}",
                 use_container_width=True,
             ):
-                process_action(action)
+                queue_action(action)
                 st.rerun()
 
     # --- Custom action ---
