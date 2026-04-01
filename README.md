@@ -104,14 +104,9 @@ python -m streamlit run frontend/app.py
 - Python 3.11+
 - AWS CLI configured
 
-## Blog Series
+## Blog
 
-This project is documented as a technical series on [Cloud by MCN](https://cloudbymcn.github.io/blog):
-
-1. **"Construí um RPG com IA na AWS por $5"** — Architecture overview and cost breakdown
-2. **Strands Agents SDK na prática** — Building the Dungeon Master agent
-3. **Nova Canvas para geração de cenas** — Real-time image generation pipeline
-4. **Serverless deployment** — Lambda + API Gateway + DynamoDB
+This project is documented as a technical series on [Cloud by MCN](https://cloudbymcn.github.io/blog).
 
 ## License
 
